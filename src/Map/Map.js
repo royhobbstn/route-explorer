@@ -1,9 +1,11 @@
+/* global Headers, Request, fetch */
+
 import React, { useEffect } from 'react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import mapboxgl from 'mapbox-gl';
 import { key } from './mapbox_api_key.js';
 import { style } from './style.js';
-const { Graph } = require('contraction-hierarchy-js');
+const { Graph, CoordinateLookup } = require('contraction-hierarchy-js');
 
 
 function Map() {
@@ -23,23 +25,42 @@ function Map() {
 
       // undirected graph, backward path
       (function() {
-        const graph = new Graph();
 
-        // start_node, end_node, edge_properties, edge_geometry
-        graph.addEdge('A', 'B', { _id: 100, _cost: 1 });
-        graph.addEdge('B', 'A', { _id: 200, _cost: 1 });
+        var headers = new Headers({ 'Accept': '*/*', 'Accept-Encoding': 'gzip, deflate, br' });
+        var options = {
+          method: 'GET',
+          headers: headers,
+          mode: 'cors',
+        };
 
-        graph.addEdge('B', 'C', { _id: 101, _cost: 2 });
-        graph.addEdge('C', 'B', { _id: 201, _cost: 2 });
+        var request = new Request('https://misc-public-files-dt.s3-us-west-2.amazonaws.com/net.json.br');
 
-        graph.addEdge('C', 'D', { _id: 102, _cost: 5 });
-        graph.addEdge('D', 'C', { _id: 202, _cost: 5 });
+        fetch(request, options)
+          .then((resp) => {
+            console.log('data loaded');
+            return resp.text();
+          })
+          .then(data => {
 
-        graph.contractGraph();
-        const finder = graph.createPathfinder({ ids: true, path: false });
-        const result = finder.queryContractionHierarchy('D', 'A');
+            console.log('data transformed to text');
 
-        console.log(result);
+            const graph = new Graph();
+            graph.loadCH(data);
+
+            console.log('data loaded into graph');
+
+            const lookup = new CoordinateLookup(graph);
+            const coords1 = lookup.getClosestNetworkPt(-116.45, 41.96);
+            const coords2 = lookup.getClosestNetworkPt(-117.45, 40.96);
+
+            const finder = graph.createPathfinder({ ids: true, path: true });
+
+            const path = finder.queryContractionHierarchy(coords1, coords2);
+            console.log(path);
+
+          });
+
+
       }());
 
 
