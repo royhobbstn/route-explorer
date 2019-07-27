@@ -67,9 +67,16 @@ window.map.on('load', () => {
     }
   });
 
+  let rendering_busy = false;
 
   worker.onmessage = function(event) {
+    if (rendering_busy) {
+      return;
+    }
+
+    rendering_busy = true;
     window.map.getSource('routeline').setData(event.data.path);
+    rendering_busy = false;
   };
 
 
