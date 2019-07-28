@@ -1,6 +1,8 @@
 /* global fetch, Headers, Request, contractionHierarchy */
 
 self.importScripts('ch-script.js');
+self.importScripts('pbf.js');
+self.importScripts('geobuf.js');
 
 const { Graph, CoordinateLookup } = contractionHierarchy;
 
@@ -53,6 +55,8 @@ self.onmessage = function(e) {
     const result = finder.queryContractionHierarchy(anchor, coords2);
     console.timeEnd('routed');
 
-    self.postMessage(result);
+    var buffer = geobuf.encode(result.path, new Pbf());
+
+    self.postMessage(buffer);
   }
 };

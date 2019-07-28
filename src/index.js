@@ -1,7 +1,6 @@
 /* global mapboxgl */
 
 import { key } from './mapbox_api_key.js';
-import { style } from './style.js';
 
 const worker = new Worker("src/worker.js");
 
@@ -9,7 +8,7 @@ const worker = new Worker("src/worker.js");
 mapboxgl.accessToken = key;
 window.map = new mapboxgl.Map({
   container: 'map',
-  style,
+  style: 'mapbox://styles/mapbox/dark-v10',
   center: [-104.9, 39.75],
   zoom: 3,
   maxZoom: 12,
@@ -48,7 +47,7 @@ window.map.on('load', () => {
   });
 
 
-  let anchor;
+  let anchor, data_update;
 
   window.map.on('mousemove', function(e) {
     if (!anchor) {
@@ -67,17 +66,16 @@ window.map.on('load', () => {
     }
   });
 
-  let rendering_busy = false;
-
   worker.onmessage = function(event) {
-    if (rendering_busy) {
-      return;
-    }
-
-    rendering_busy = true;
-    window.map.getSource('routeline').setData(event.data.path);
-    rendering_busy = false;
+    data_update = event.data;
   };
 
+  window.setInterval(function() {
+    if (data_update) {
+      var geojson = geobuf.decode(new Pbf(data_update));
+      window.map.getSource('routeline').setData(geojson);
+      data_update = null;
+    }
+  }, 50);
 
 });
