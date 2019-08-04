@@ -1,8 +1,8 @@
-/* global fetch, Headers, Request, contractionHierarchy */
+/* global fetch, Headers, Request, contractionHierarchy, geobuf, Pbf */
 
-self.importScripts('ch-script.js');
-self.importScripts('pbf.js');
-self.importScripts('geobuf.js');
+self.importScripts('scripts/ch-script.js');
+self.importScripts('scripts/pbf.js');
+self.importScripts('scripts/geobuf.js');
 
 const { Graph, CoordinateLookup } = contractionHierarchy;
 
@@ -16,19 +16,19 @@ var options = {
   mode: 'cors',
 };
 
-var request = new Request('https://misc-public-files-dt.s3-us-west-2.amazonaws.com/net.json.br');
+var request = new Request('https://misc-public-files-dt.s3-us-west-2.amazonaws.com/net.pbf.br');
 
 fetch(request, options)
   .then((resp) => {
     console.log('data loaded');
-    return resp.text();
+    return resp.arrayBuffer();
   })
-  .then(data => {
+  .then(buffer => {
 
     console.log('data transformed to text');
 
     const graph = new Graph();
-    graph.loadCH(data);
+    graph.loadPbfCH(buffer);
 
     console.log('data loaded into graph');
 

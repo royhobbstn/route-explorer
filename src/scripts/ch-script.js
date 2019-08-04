@@ -1186,12 +1186,10 @@ var contractionHierarchy = (function (exports) {
     const _addContractedEdge = function(start_index, end_index, properties) {
 
       // geometry not applicable here
-
       this._currentEdgeIndex++;
       this._edgeProperties[this._currentEdgeIndex] = properties;
       this._edgeProperties[this._currentEdgeIndex]._start_index = start_index;
       this._edgeProperties[this._currentEdgeIndex]._end_index = end_index;
-      this._edgeGeometry[this._currentEdgeIndex] = null;
 
       // create object to push into adjacency list
       const obj = {
@@ -1223,8 +1221,865 @@ var contractionHierarchy = (function (exports) {
 
     };
 
+    // ContractionHierarchy ========================================
+
+    const ContractionHierarchy = {};
+
+    ContractionHierarchy.read = function(pbf, end) {
+      return pbf.readFields(ContractionHierarchy._readField, { _locked: false, _geoJsonFlag: false, adjacency_list: [], reverse_adjacency_list: [], _nodeToIndexLookup: {}, _edgeProperties: [], _edgeGeometry: [] }, end);
+    };
+    ContractionHierarchy._readField = function(tag, obj, pbf) {
+      if (tag === 1) obj._locked = pbf.readBoolean();
+      else if (tag === 2) obj._geoJsonFlag = pbf.readBoolean();
+      else if (tag === 3) obj.adjacency_list.push(ContractionHierarchy.AdjList.read(pbf, pbf.readVarint() + pbf.pos));
+      else if (tag === 4) obj.reverse_adjacency_list.push(ContractionHierarchy.AdjList.read(pbf, pbf.readVarint() + pbf.pos));
+      else if (tag === 5) { var entry = ContractionHierarchy._FieldEntry5.read(pbf, pbf.readVarint() + pbf.pos);
+        obj._nodeToIndexLookup[entry.key] = entry.value; }
+      else if (tag === 6) obj._edgeProperties.push(ContractionHierarchy._EDGEPROPERTIES.read(pbf, pbf.readVarint() + pbf.pos));
+      else if (tag === 7) obj._edgeGeometry.push(ContractionHierarchy.GeometryArray.read(pbf, pbf.readVarint() + pbf.pos));
+    };
+    ContractionHierarchy.write = function(obj, pbf) {
+      if (obj._locked) pbf.writeBooleanField(1, obj._locked);
+      if (obj._geoJsonFlag) pbf.writeBooleanField(2, obj._geoJsonFlag);
+      if (obj.adjacency_list)
+        for (var i = 0; i < obj.adjacency_list.length; i++) pbf.writeMessage(3, ContractionHierarchy.AdjList.write, obj.adjacency_list[i]);
+      if (obj.reverse_adjacency_list)
+        for (i = 0; i < obj.reverse_adjacency_list.length; i++) pbf.writeMessage(4, ContractionHierarchy.AdjList.write, obj.reverse_adjacency_list[i]);
+      if (obj._nodeToIndexLookup)
+        for (i in obj._nodeToIndexLookup)
+          if (Object.prototype.hasOwnProperty.call(obj._nodeToIndexLookup, i)) pbf.writeMessage(5, ContractionHierarchy._FieldEntry5.write, { key: i, value: obj._nodeToIndexLookup[i] });
+      if (obj._edgeProperties)
+        for (i = 0; i < obj._edgeProperties.length; i++) pbf.writeMessage(6, ContractionHierarchy._EDGEPROPERTIES.write, obj._edgeProperties[i]);
+      if (obj._edgeGeometry)
+        for (i = 0; i < obj._edgeGeometry.length; i++) pbf.writeMessage(7, ContractionHierarchy.GeometryArray.write, obj._edgeGeometry[i]);
+    };
+
+    // ContractionHierarchy.EdgeAttrs ========================================
+
+    ContractionHierarchy.EdgeAttrs = {};
+
+    ContractionHierarchy.EdgeAttrs.read = function(pbf, end) {
+      return pbf.readFields(ContractionHierarchy.EdgeAttrs._readField, { end: 0, cost: 0, attrs: 0 }, end);
+    };
+    ContractionHierarchy.EdgeAttrs._readField = function(tag, obj, pbf) {
+      if (tag === 1) obj.end = pbf.readVarint();
+      else if (tag === 2) obj.cost = pbf.readDouble();
+      else if (tag === 3) obj.attrs = pbf.readVarint();
+    };
+    ContractionHierarchy.EdgeAttrs.write = function(obj, pbf) {
+      if (obj.end) pbf.writeVarintField(1, obj.end);
+      if (obj.cost) pbf.writeDoubleField(2, obj.cost);
+      if (obj.attrs) pbf.writeVarintField(3, obj.attrs);
+    };
+
+    // ContractionHierarchy.AdjList ========================================
+
+    ContractionHierarchy.AdjList = {};
+
+    ContractionHierarchy.AdjList.read = function(pbf, end) {
+      return pbf.readFields(ContractionHierarchy.AdjList._readField, { edges: [] }, end);
+    };
+    ContractionHierarchy.AdjList._readField = function(tag, obj, pbf) {
+      if (tag === 1) obj.edges.push(ContractionHierarchy.EdgeAttrs.read(pbf, pbf.readVarint() + pbf.pos));
+    };
+    ContractionHierarchy.AdjList.write = function(obj, pbf) {
+      if (obj.edges)
+        for (var i = 0; i < obj.edges.length; i++) pbf.writeMessage(1, ContractionHierarchy.EdgeAttrs.write, obj.edges[i]);
+    };
+
+    // ContractionHierarchy._EDGEPROPERTIES ========================================
+
+    ContractionHierarchy._EDGEPROPERTIES = {};
+
+    ContractionHierarchy._EDGEPROPERTIES.read = function(pbf, end) {
+      return pbf.readFields(ContractionHierarchy._EDGEPROPERTIES._readField, { STFIPS: 0, CTFIPS: 0, MILES: 0, _cost: 0, _id: 0, _start_index: 0, _end_index: 0, _ordered: [] }, end);
+    };
+    ContractionHierarchy._EDGEPROPERTIES._readField = function(tag, obj, pbf) {
+      if (tag === 1) obj.STFIPS = pbf.readVarint();
+      else if (tag === 2) obj.CTFIPS = pbf.readVarint();
+      else if (tag === 3) obj.MILES = pbf.readDouble();
+      else if (tag === 4) obj._cost = pbf.readDouble();
+      else if (tag === 5) obj._id = pbf.readVarint();
+      else if (tag === 6) obj._start_index = pbf.readVarint();
+      else if (tag === 7) obj._end_index = pbf.readVarint();
+      else if (tag === 8) pbf.readPackedVarint(obj._ordered);
+    };
+    ContractionHierarchy._EDGEPROPERTIES.write = function(obj, pbf) {
+      if (obj.STFIPS) pbf.writeVarintField(1, obj.STFIPS);
+      if (obj.CTFIPS) pbf.writeVarintField(2, obj.CTFIPS);
+      if (obj.MILES) pbf.writeDoubleField(3, obj.MILES);
+      if (obj._cost) pbf.writeDoubleField(4, obj._cost);
+      if (obj._id) pbf.writeVarintField(5, obj._id);
+      if (obj._start_index) pbf.writeVarintField(6, obj._start_index);
+      if (obj._end_index) pbf.writeVarintField(7, obj._end_index);
+      if (obj._ordered) pbf.writePackedVarint(8, obj._ordered);
+    };
+
+    // ContractionHierarchy.LineStringAray ========================================
+
+    ContractionHierarchy.LineStringAray = {};
+
+    ContractionHierarchy.LineStringAray.read = function(pbf, end) {
+      return pbf.readFields(ContractionHierarchy.LineStringAray._readField, { coords: [] }, end);
+    };
+    ContractionHierarchy.LineStringAray._readField = function(tag, obj, pbf) {
+      if (tag === 1) pbf.readPackedDouble(obj.coords);
+    };
+    ContractionHierarchy.LineStringAray.write = function(obj, pbf) {
+      if (obj.coords) pbf.writePackedDouble(1, obj.coords);
+    };
+
+    // ContractionHierarchy.GeometryArray ========================================
+
+    ContractionHierarchy.GeometryArray = {};
+
+    ContractionHierarchy.GeometryArray.read = function(pbf, end) {
+      return pbf.readFields(ContractionHierarchy.GeometryArray._readField, { linestrings: [] }, end);
+    };
+    ContractionHierarchy.GeometryArray._readField = function(tag, obj, pbf) {
+      if (tag === 1) obj.linestrings.push(ContractionHierarchy.LineStringAray.read(pbf, pbf.readVarint() + pbf.pos));
+    };
+    ContractionHierarchy.GeometryArray.write = function(obj, pbf) {
+      if (obj.linestrings)
+        for (var i = 0; i < obj.linestrings.length; i++) pbf.writeMessage(1, ContractionHierarchy.LineStringAray.write, obj.linestrings[i]);
+    };
+
+    // ContractionHierarchy._FieldEntry5 ========================================
+
+    ContractionHierarchy._FieldEntry5 = {};
+
+    ContractionHierarchy._FieldEntry5.read = function(pbf, end) {
+      return pbf.readFields(ContractionHierarchy._FieldEntry5._readField, { key: "", value: 0 }, end);
+    };
+    ContractionHierarchy._FieldEntry5._readField = function(tag, obj, pbf) {
+      if (tag === 1) obj.key = pbf.readString();
+      else if (tag === 2) obj.value = pbf.readVarint();
+    };
+    ContractionHierarchy._FieldEntry5.write = function(obj, pbf) {
+      if (obj.key) pbf.writeStringField(1, obj.key);
+      if (obj.value) pbf.writeVarintField(2, obj.value);
+    };
+
+    const CH = ContractionHierarchy;
+
+    var read = function (buffer, offset, isLE, mLen, nBytes) {
+      var e, m;
+      var eLen = (nBytes * 8) - mLen - 1;
+      var eMax = (1 << eLen) - 1;
+      var eBias = eMax >> 1;
+      var nBits = -7;
+      var i = isLE ? (nBytes - 1) : 0;
+      var d = isLE ? -1 : 1;
+      var s = buffer[offset + i];
+
+      i += d;
+
+      e = s & ((1 << (-nBits)) - 1);
+      s >>= (-nBits);
+      nBits += eLen;
+      for (; nBits > 0; e = (e * 256) + buffer[offset + i], i += d, nBits -= 8) {}
+
+      m = e & ((1 << (-nBits)) - 1);
+      e >>= (-nBits);
+      nBits += mLen;
+      for (; nBits > 0; m = (m * 256) + buffer[offset + i], i += d, nBits -= 8) {}
+
+      if (e === 0) {
+        e = 1 - eBias;
+      } else if (e === eMax) {
+        return m ? NaN : ((s ? -1 : 1) * Infinity)
+      } else {
+        m = m + Math.pow(2, mLen);
+        e = e - eBias;
+      }
+      return (s ? -1 : 1) * m * Math.pow(2, e - mLen)
+    };
+
+    var write = function (buffer, value, offset, isLE, mLen, nBytes) {
+      var e, m, c;
+      var eLen = (nBytes * 8) - mLen - 1;
+      var eMax = (1 << eLen) - 1;
+      var eBias = eMax >> 1;
+      var rt = (mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0);
+      var i = isLE ? 0 : (nBytes - 1);
+      var d = isLE ? 1 : -1;
+      var s = value < 0 || (value === 0 && 1 / value < 0) ? 1 : 0;
+
+      value = Math.abs(value);
+
+      if (isNaN(value) || value === Infinity) {
+        m = isNaN(value) ? 1 : 0;
+        e = eMax;
+      } else {
+        e = Math.floor(Math.log(value) / Math.LN2);
+        if (value * (c = Math.pow(2, -e)) < 1) {
+          e--;
+          c *= 2;
+        }
+        if (e + eBias >= 1) {
+          value += rt / c;
+        } else {
+          value += rt * Math.pow(2, 1 - eBias);
+        }
+        if (value * c >= 2) {
+          e++;
+          c /= 2;
+        }
+
+        if (e + eBias >= eMax) {
+          m = 0;
+          e = eMax;
+        } else if (e + eBias >= 1) {
+          m = ((value * c) - 1) * Math.pow(2, mLen);
+          e = e + eBias;
+        } else {
+          m = value * Math.pow(2, eBias - 1) * Math.pow(2, mLen);
+          e = 0;
+        }
+      }
+
+      for (; mLen >= 8; buffer[offset + i] = m & 0xff, i += d, m /= 256, mLen -= 8) {}
+
+      e = (e << mLen) | m;
+      eLen += mLen;
+      for (; eLen > 0; buffer[offset + i] = e & 0xff, i += d, e /= 256, eLen -= 8) {}
+
+      buffer[offset + i - d] |= s * 128;
+    };
+
+    var ieee754 = {
+    	read: read,
+    	write: write
+    };
+
+    var pbf = Pbf;
+
+
+
+    function Pbf(buf) {
+        this.buf = ArrayBuffer.isView && ArrayBuffer.isView(buf) ? buf : new Uint8Array(buf || 0);
+        this.pos = 0;
+        this.type = 0;
+        this.length = this.buf.length;
+    }
+
+    Pbf.Varint  = 0; // varint: int32, int64, uint32, uint64, sint32, sint64, bool, enum
+    Pbf.Fixed64 = 1; // 64-bit: double, fixed64, sfixed64
+    Pbf.Bytes   = 2; // length-delimited: string, bytes, embedded messages, packed repeated fields
+    Pbf.Fixed32 = 5; // 32-bit: float, fixed32, sfixed32
+
+    var SHIFT_LEFT_32 = (1 << 16) * (1 << 16),
+        SHIFT_RIGHT_32 = 1 / SHIFT_LEFT_32;
+
+    Pbf.prototype = {
+
+        destroy: function() {
+            this.buf = null;
+        },
+
+        // === READING =================================================================
+
+        readFields: function(readField, result, end) {
+            end = end || this.length;
+
+            while (this.pos < end) {
+                var val = this.readVarint(),
+                    tag = val >> 3,
+                    startPos = this.pos;
+
+                this.type = val & 0x7;
+                readField(tag, result, this);
+
+                if (this.pos === startPos) this.skip(val);
+            }
+            return result;
+        },
+
+        readMessage: function(readField, result) {
+            return this.readFields(readField, result, this.readVarint() + this.pos);
+        },
+
+        readFixed32: function() {
+            var val = readUInt32(this.buf, this.pos);
+            this.pos += 4;
+            return val;
+        },
+
+        readSFixed32: function() {
+            var val = readInt32(this.buf, this.pos);
+            this.pos += 4;
+            return val;
+        },
+
+        // 64-bit int handling is based on github.com/dpw/node-buffer-more-ints (MIT-licensed)
+
+        readFixed64: function() {
+            var val = readUInt32(this.buf, this.pos) + readUInt32(this.buf, this.pos + 4) * SHIFT_LEFT_32;
+            this.pos += 8;
+            return val;
+        },
+
+        readSFixed64: function() {
+            var val = readUInt32(this.buf, this.pos) + readInt32(this.buf, this.pos + 4) * SHIFT_LEFT_32;
+            this.pos += 8;
+            return val;
+        },
+
+        readFloat: function() {
+            var val = ieee754.read(this.buf, this.pos, true, 23, 4);
+            this.pos += 4;
+            return val;
+        },
+
+        readDouble: function() {
+            var val = ieee754.read(this.buf, this.pos, true, 52, 8);
+            this.pos += 8;
+            return val;
+        },
+
+        readVarint: function(isSigned) {
+            var buf = this.buf,
+                val, b;
+
+            b = buf[this.pos++]; val  =  b & 0x7f;        if (b < 0x80) return val;
+            b = buf[this.pos++]; val |= (b & 0x7f) << 7;  if (b < 0x80) return val;
+            b = buf[this.pos++]; val |= (b & 0x7f) << 14; if (b < 0x80) return val;
+            b = buf[this.pos++]; val |= (b & 0x7f) << 21; if (b < 0x80) return val;
+            b = buf[this.pos];   val |= (b & 0x0f) << 28;
+
+            return readVarintRemainder(val, isSigned, this);
+        },
+
+        readVarint64: function() { // for compatibility with v2.0.1
+            return this.readVarint(true);
+        },
+
+        readSVarint: function() {
+            var num = this.readVarint();
+            return num % 2 === 1 ? (num + 1) / -2 : num / 2; // zigzag encoding
+        },
+
+        readBoolean: function() {
+            return Boolean(this.readVarint());
+        },
+
+        readString: function() {
+            var end = this.readVarint() + this.pos,
+                str = readUtf8(this.buf, this.pos, end);
+            this.pos = end;
+            return str;
+        },
+
+        readBytes: function() {
+            var end = this.readVarint() + this.pos,
+                buffer = this.buf.subarray(this.pos, end);
+            this.pos = end;
+            return buffer;
+        },
+
+        // verbose for performance reasons; doesn't affect gzipped size
+
+        readPackedVarint: function(arr, isSigned) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readVarint(isSigned));
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readVarint(isSigned));
+            return arr;
+        },
+        readPackedSVarint: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readSVarint());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readSVarint());
+            return arr;
+        },
+        readPackedBoolean: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readBoolean());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readBoolean());
+            return arr;
+        },
+        readPackedFloat: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readFloat());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readFloat());
+            return arr;
+        },
+        readPackedDouble: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readDouble());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readDouble());
+            return arr;
+        },
+        readPackedFixed32: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readFixed32());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readFixed32());
+            return arr;
+        },
+        readPackedSFixed32: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readSFixed32());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readSFixed32());
+            return arr;
+        },
+        readPackedFixed64: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readFixed64());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readFixed64());
+            return arr;
+        },
+        readPackedSFixed64: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readSFixed64());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readSFixed64());
+            return arr;
+        },
+
+        skip: function(val) {
+            var type = val & 0x7;
+            if (type === Pbf.Varint) while (this.buf[this.pos++] > 0x7f) {}
+            else if (type === Pbf.Bytes) this.pos = this.readVarint() + this.pos;
+            else if (type === Pbf.Fixed32) this.pos += 4;
+            else if (type === Pbf.Fixed64) this.pos += 8;
+            else throw new Error('Unimplemented type: ' + type);
+        },
+
+        // === WRITING =================================================================
+
+        writeTag: function(tag, type) {
+            this.writeVarint((tag << 3) | type);
+        },
+
+        realloc: function(min) {
+            var length = this.length || 16;
+
+            while (length < this.pos + min) length *= 2;
+
+            if (length !== this.length) {
+                var buf = new Uint8Array(length);
+                buf.set(this.buf);
+                this.buf = buf;
+                this.length = length;
+            }
+        },
+
+        finish: function() {
+            this.length = this.pos;
+            this.pos = 0;
+            return this.buf.subarray(0, this.length);
+        },
+
+        writeFixed32: function(val) {
+            this.realloc(4);
+            writeInt32(this.buf, val, this.pos);
+            this.pos += 4;
+        },
+
+        writeSFixed32: function(val) {
+            this.realloc(4);
+            writeInt32(this.buf, val, this.pos);
+            this.pos += 4;
+        },
+
+        writeFixed64: function(val) {
+            this.realloc(8);
+            writeInt32(this.buf, val & -1, this.pos);
+            writeInt32(this.buf, Math.floor(val * SHIFT_RIGHT_32), this.pos + 4);
+            this.pos += 8;
+        },
+
+        writeSFixed64: function(val) {
+            this.realloc(8);
+            writeInt32(this.buf, val & -1, this.pos);
+            writeInt32(this.buf, Math.floor(val * SHIFT_RIGHT_32), this.pos + 4);
+            this.pos += 8;
+        },
+
+        writeVarint: function(val) {
+            val = +val || 0;
+
+            if (val > 0xfffffff || val < 0) {
+                writeBigVarint(val, this);
+                return;
+            }
+
+            this.realloc(4);
+
+            this.buf[this.pos++] =           val & 0x7f  | (val > 0x7f ? 0x80 : 0); if (val <= 0x7f) return;
+            this.buf[this.pos++] = ((val >>>= 7) & 0x7f) | (val > 0x7f ? 0x80 : 0); if (val <= 0x7f) return;
+            this.buf[this.pos++] = ((val >>>= 7) & 0x7f) | (val > 0x7f ? 0x80 : 0); if (val <= 0x7f) return;
+            this.buf[this.pos++] =   (val >>> 7) & 0x7f;
+        },
+
+        writeSVarint: function(val) {
+            this.writeVarint(val < 0 ? -val * 2 - 1 : val * 2);
+        },
+
+        writeBoolean: function(val) {
+            this.writeVarint(Boolean(val));
+        },
+
+        writeString: function(str) {
+            str = String(str);
+            this.realloc(str.length * 4);
+
+            this.pos++; // reserve 1 byte for short string length
+
+            var startPos = this.pos;
+            // write the string directly to the buffer and see how much was written
+            this.pos = writeUtf8(this.buf, str, this.pos);
+            var len = this.pos - startPos;
+
+            if (len >= 0x80) makeRoomForExtraLength(startPos, len, this);
+
+            // finally, write the message length in the reserved place and restore the position
+            this.pos = startPos - 1;
+            this.writeVarint(len);
+            this.pos += len;
+        },
+
+        writeFloat: function(val) {
+            this.realloc(4);
+            ieee754.write(this.buf, val, this.pos, true, 23, 4);
+            this.pos += 4;
+        },
+
+        writeDouble: function(val) {
+            this.realloc(8);
+            ieee754.write(this.buf, val, this.pos, true, 52, 8);
+            this.pos += 8;
+        },
+
+        writeBytes: function(buffer) {
+            var len = buffer.length;
+            this.writeVarint(len);
+            this.realloc(len);
+            for (var i = 0; i < len; i++) this.buf[this.pos++] = buffer[i];
+        },
+
+        writeRawMessage: function(fn, obj) {
+            this.pos++; // reserve 1 byte for short message length
+
+            // write the message directly to the buffer and see how much was written
+            var startPos = this.pos;
+            fn(obj, this);
+            var len = this.pos - startPos;
+
+            if (len >= 0x80) makeRoomForExtraLength(startPos, len, this);
+
+            // finally, write the message length in the reserved place and restore the position
+            this.pos = startPos - 1;
+            this.writeVarint(len);
+            this.pos += len;
+        },
+
+        writeMessage: function(tag, fn, obj) {
+            this.writeTag(tag, Pbf.Bytes);
+            this.writeRawMessage(fn, obj);
+        },
+
+        writePackedVarint:   function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedVarint, arr);   },
+        writePackedSVarint:  function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedSVarint, arr);  },
+        writePackedBoolean:  function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedBoolean, arr);  },
+        writePackedFloat:    function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedFloat, arr);    },
+        writePackedDouble:   function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedDouble, arr);   },
+        writePackedFixed32:  function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedFixed32, arr);  },
+        writePackedSFixed32: function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedSFixed32, arr); },
+        writePackedFixed64:  function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedFixed64, arr);  },
+        writePackedSFixed64: function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedSFixed64, arr); },
+
+        writeBytesField: function(tag, buffer) {
+            this.writeTag(tag, Pbf.Bytes);
+            this.writeBytes(buffer);
+        },
+        writeFixed32Field: function(tag, val) {
+            this.writeTag(tag, Pbf.Fixed32);
+            this.writeFixed32(val);
+        },
+        writeSFixed32Field: function(tag, val) {
+            this.writeTag(tag, Pbf.Fixed32);
+            this.writeSFixed32(val);
+        },
+        writeFixed64Field: function(tag, val) {
+            this.writeTag(tag, Pbf.Fixed64);
+            this.writeFixed64(val);
+        },
+        writeSFixed64Field: function(tag, val) {
+            this.writeTag(tag, Pbf.Fixed64);
+            this.writeSFixed64(val);
+        },
+        writeVarintField: function(tag, val) {
+            this.writeTag(tag, Pbf.Varint);
+            this.writeVarint(val);
+        },
+        writeSVarintField: function(tag, val) {
+            this.writeTag(tag, Pbf.Varint);
+            this.writeSVarint(val);
+        },
+        writeStringField: function(tag, str) {
+            this.writeTag(tag, Pbf.Bytes);
+            this.writeString(str);
+        },
+        writeFloatField: function(tag, val) {
+            this.writeTag(tag, Pbf.Fixed32);
+            this.writeFloat(val);
+        },
+        writeDoubleField: function(tag, val) {
+            this.writeTag(tag, Pbf.Fixed64);
+            this.writeDouble(val);
+        },
+        writeBooleanField: function(tag, val) {
+            this.writeVarintField(tag, Boolean(val));
+        }
+    };
+
+    function readVarintRemainder(l, s, p) {
+        var buf = p.buf,
+            h, b;
+
+        b = buf[p.pos++]; h  = (b & 0x70) >> 4;  if (b < 0x80) return toNum(l, h, s);
+        b = buf[p.pos++]; h |= (b & 0x7f) << 3;  if (b < 0x80) return toNum(l, h, s);
+        b = buf[p.pos++]; h |= (b & 0x7f) << 10; if (b < 0x80) return toNum(l, h, s);
+        b = buf[p.pos++]; h |= (b & 0x7f) << 17; if (b < 0x80) return toNum(l, h, s);
+        b = buf[p.pos++]; h |= (b & 0x7f) << 24; if (b < 0x80) return toNum(l, h, s);
+        b = buf[p.pos++]; h |= (b & 0x01) << 31; if (b < 0x80) return toNum(l, h, s);
+
+        throw new Error('Expected varint not more than 10 bytes');
+    }
+
+    function readPackedEnd(pbf) {
+        return pbf.type === Pbf.Bytes ?
+            pbf.readVarint() + pbf.pos : pbf.pos + 1;
+    }
+
+    function toNum(low, high, isSigned) {
+        if (isSigned) {
+            return high * 0x100000000 + (low >>> 0);
+        }
+
+        return ((high >>> 0) * 0x100000000) + (low >>> 0);
+    }
+
+    function writeBigVarint(val, pbf) {
+        var low, high;
+
+        if (val >= 0) {
+            low  = (val % 0x100000000) | 0;
+            high = (val / 0x100000000) | 0;
+        } else {
+            low  = ~(-val % 0x100000000);
+            high = ~(-val / 0x100000000);
+
+            if (low ^ 0xffffffff) {
+                low = (low + 1) | 0;
+            } else {
+                low = 0;
+                high = (high + 1) | 0;
+            }
+        }
+
+        if (val >= 0x10000000000000000 || val < -0x10000000000000000) {
+            throw new Error('Given varint doesn\'t fit into 10 bytes');
+        }
+
+        pbf.realloc(10);
+
+        writeBigVarintLow(low, high, pbf);
+        writeBigVarintHigh(high, pbf);
+    }
+
+    function writeBigVarintLow(low, high, pbf) {
+        pbf.buf[pbf.pos++] = low & 0x7f | 0x80; low >>>= 7;
+        pbf.buf[pbf.pos++] = low & 0x7f | 0x80; low >>>= 7;
+        pbf.buf[pbf.pos++] = low & 0x7f | 0x80; low >>>= 7;
+        pbf.buf[pbf.pos++] = low & 0x7f | 0x80; low >>>= 7;
+        pbf.buf[pbf.pos]   = low & 0x7f;
+    }
+
+    function writeBigVarintHigh(high, pbf) {
+        var lsb = (high & 0x07) << 4;
+
+        pbf.buf[pbf.pos++] |= lsb         | ((high >>>= 3) ? 0x80 : 0); if (!high) return;
+        pbf.buf[pbf.pos++]  = high & 0x7f | ((high >>>= 7) ? 0x80 : 0); if (!high) return;
+        pbf.buf[pbf.pos++]  = high & 0x7f | ((high >>>= 7) ? 0x80 : 0); if (!high) return;
+        pbf.buf[pbf.pos++]  = high & 0x7f | ((high >>>= 7) ? 0x80 : 0); if (!high) return;
+        pbf.buf[pbf.pos++]  = high & 0x7f | ((high >>>= 7) ? 0x80 : 0); if (!high) return;
+        pbf.buf[pbf.pos++]  = high & 0x7f;
+    }
+
+    function makeRoomForExtraLength(startPos, len, pbf) {
+        var extraLen =
+            len <= 0x3fff ? 1 :
+            len <= 0x1fffff ? 2 :
+            len <= 0xfffffff ? 3 : Math.floor(Math.log(len) / (Math.LN2 * 7));
+
+        // if 1 byte isn't enough for encoding message length, shift the data to the right
+        pbf.realloc(extraLen);
+        for (var i = pbf.pos - 1; i >= startPos; i--) pbf.buf[i + extraLen] = pbf.buf[i];
+    }
+
+    function writePackedVarint(arr, pbf)   { for (var i = 0; i < arr.length; i++) pbf.writeVarint(arr[i]);   }
+    function writePackedSVarint(arr, pbf)  { for (var i = 0; i < arr.length; i++) pbf.writeSVarint(arr[i]);  }
+    function writePackedFloat(arr, pbf)    { for (var i = 0; i < arr.length; i++) pbf.writeFloat(arr[i]);    }
+    function writePackedDouble(arr, pbf)   { for (var i = 0; i < arr.length; i++) pbf.writeDouble(arr[i]);   }
+    function writePackedBoolean(arr, pbf)  { for (var i = 0; i < arr.length; i++) pbf.writeBoolean(arr[i]);  }
+    function writePackedFixed32(arr, pbf)  { for (var i = 0; i < arr.length; i++) pbf.writeFixed32(arr[i]);  }
+    function writePackedSFixed32(arr, pbf) { for (var i = 0; i < arr.length; i++) pbf.writeSFixed32(arr[i]); }
+    function writePackedFixed64(arr, pbf)  { for (var i = 0; i < arr.length; i++) pbf.writeFixed64(arr[i]);  }
+    function writePackedSFixed64(arr, pbf) { for (var i = 0; i < arr.length; i++) pbf.writeSFixed64(arr[i]); }
+
+    // Buffer code below from https://github.com/feross/buffer, MIT-licensed
+
+    function readUInt32(buf, pos) {
+        return ((buf[pos]) |
+            (buf[pos + 1] << 8) |
+            (buf[pos + 2] << 16)) +
+            (buf[pos + 3] * 0x1000000);
+    }
+
+    function writeInt32(buf, val, pos) {
+        buf[pos] = val;
+        buf[pos + 1] = (val >>> 8);
+        buf[pos + 2] = (val >>> 16);
+        buf[pos + 3] = (val >>> 24);
+    }
+
+    function readInt32(buf, pos) {
+        return ((buf[pos]) |
+            (buf[pos + 1] << 8) |
+            (buf[pos + 2] << 16)) +
+            (buf[pos + 3] << 24);
+    }
+
+    function readUtf8(buf, pos, end) {
+        var str = '';
+        var i = pos;
+
+        while (i < end) {
+            var b0 = buf[i];
+            var c = null; // codepoint
+            var bytesPerSequence =
+                b0 > 0xEF ? 4 :
+                b0 > 0xDF ? 3 :
+                b0 > 0xBF ? 2 : 1;
+
+            if (i + bytesPerSequence > end) break;
+
+            var b1, b2, b3;
+
+            if (bytesPerSequence === 1) {
+                if (b0 < 0x80) {
+                    c = b0;
+                }
+            } else if (bytesPerSequence === 2) {
+                b1 = buf[i + 1];
+                if ((b1 & 0xC0) === 0x80) {
+                    c = (b0 & 0x1F) << 0x6 | (b1 & 0x3F);
+                    if (c <= 0x7F) {
+                        c = null;
+                    }
+                }
+            } else if (bytesPerSequence === 3) {
+                b1 = buf[i + 1];
+                b2 = buf[i + 2];
+                if ((b1 & 0xC0) === 0x80 && (b2 & 0xC0) === 0x80) {
+                    c = (b0 & 0xF) << 0xC | (b1 & 0x3F) << 0x6 | (b2 & 0x3F);
+                    if (c <= 0x7FF || (c >= 0xD800 && c <= 0xDFFF)) {
+                        c = null;
+                    }
+                }
+            } else if (bytesPerSequence === 4) {
+                b1 = buf[i + 1];
+                b2 = buf[i + 2];
+                b3 = buf[i + 3];
+                if ((b1 & 0xC0) === 0x80 && (b2 & 0xC0) === 0x80 && (b3 & 0xC0) === 0x80) {
+                    c = (b0 & 0xF) << 0x12 | (b1 & 0x3F) << 0xC | (b2 & 0x3F) << 0x6 | (b3 & 0x3F);
+                    if (c <= 0xFFFF || c >= 0x110000) {
+                        c = null;
+                    }
+                }
+            }
+
+            if (c === null) {
+                c = 0xFFFD;
+                bytesPerSequence = 1;
+
+            } else if (c > 0xFFFF) {
+                c -= 0x10000;
+                str += String.fromCharCode(c >>> 10 & 0x3FF | 0xD800);
+                c = 0xDC00 | c & 0x3FF;
+            }
+
+            str += String.fromCharCode(c);
+            i += bytesPerSequence;
+        }
+
+        return str;
+    }
+
+    function writeUtf8(buf, str, pos) {
+        for (var i = 0, c, lead; i < str.length; i++) {
+            c = str.charCodeAt(i); // code point
+
+            if (c > 0xD7FF && c < 0xE000) {
+                if (lead) {
+                    if (c < 0xDC00) {
+                        buf[pos++] = 0xEF;
+                        buf[pos++] = 0xBF;
+                        buf[pos++] = 0xBD;
+                        lead = c;
+                        continue;
+                    } else {
+                        c = lead - 0xD800 << 10 | c - 0xDC00 | 0x10000;
+                        lead = null;
+                    }
+                } else {
+                    if (c > 0xDBFF || (i + 1 === str.length)) {
+                        buf[pos++] = 0xEF;
+                        buf[pos++] = 0xBF;
+                        buf[pos++] = 0xBD;
+                    } else {
+                        lead = c;
+                    }
+                    continue;
+                }
+            } else if (lead) {
+                buf[pos++] = 0xEF;
+                buf[pos++] = 0xBF;
+                buf[pos++] = 0xBD;
+                lead = null;
+            }
+
+            if (c < 0x80) {
+                buf[pos++] = c;
+            } else {
+                if (c < 0x800) {
+                    buf[pos++] = c >> 0x6 | 0xC0;
+                } else {
+                    if (c < 0x10000) {
+                        buf[pos++] = c >> 0xC | 0xE0;
+                    } else {
+                        buf[pos++] = c >> 0x12 | 0xF0;
+                        buf[pos++] = c >> 0xC & 0x3F | 0x80;
+                    }
+                    buf[pos++] = c >> 0x6 & 0x3F | 0x80;
+                }
+                buf[pos++] = c & 0x3F | 0x80;
+            }
+        }
+        return pos;
+    }
+
     const loadCH = function(ch) {
-      const parsed = JSON.parse(ch);
+      const parsed = (typeof ch === 'object') ? ch : JSON.parse(ch);
       this._locked = parsed._locked;
       this._geoJsonFlag = parsed._geoJsonFlag;
       this.adjacency_list = parsed.adjacency_list;
@@ -1249,6 +2104,100 @@ var contractionHierarchy = (function (exports) {
         _edgeProperties: this._edgeProperties,
         _edgeGeometry: this._edgeGeometry
       });
+    };
+
+
+    const loadPbfCH = function(buffer) {
+
+      var readpbf = new pbf(buffer);
+      var obj = CH.read(readpbf);
+
+      // back to graph compatible structure
+      obj.adjacency_list = obj.adjacency_list.map(list => {
+        return list.edges;
+      });
+
+      obj.reverse_adjacency_list = obj.reverse_adjacency_list.map(list => {
+        return list.edges;
+      });
+
+      obj._edgeGeometry = obj._edgeGeometry.map(l => {
+        return l.linestrings.map(c => {
+          return c.coords;
+        });
+      });
+
+      this._locked = obj._locked;
+      this._geoJsonFlag = obj._geoJsonFlag;
+      this.adjacency_list = obj.adjacency_list;
+      this.reverse_adjacency_list = obj.reverse_adjacency_list;
+      this._nodeToIndexLookup = obj._nodeToIndexLookup;
+      this._edgeProperties = obj._edgeProperties; // TODO... misc user properties
+      this._edgeGeometry = obj._edgeGeometry;
+
+      console.log(`done loading pbf`);
+
+    };
+
+    const savePbfCH = function(path) {
+
+      if (!require) {
+        console.log('saving as PBF only works in NodeJS');
+        return;
+      }
+
+      const fs = require("fs");
+
+      if (!this._locked) {
+        throw new Error('No sense in saving network before it is contracted.');
+      }
+
+      const data = {
+        _locked: this._locked,
+        _geoJsonFlag: this._geoJsonFlag,
+        adjacency_list: this.adjacency_list,
+        reverse_adjacency_list: this.reverse_adjacency_list,
+        _nodeToIndexLookup: this._nodeToIndexLookup,
+        _edgeProperties: this._edgeProperties,
+        _edgeGeometry: this._edgeGeometry
+      };
+
+      // convert to protobuf compatible
+
+      data.adjacency_list = data.adjacency_list.map(list => {
+        return {
+          edges: list.map(edge => {
+            return edge;
+          })
+        };
+      });
+
+      data.reverse_adjacency_list = data.reverse_adjacency_list.map(list => {
+        return {
+          edges: list.map(edge => {
+            return edge;
+          })
+        };
+      });
+
+      data._edgeGeometry = data._edgeGeometry.map(linestring => {
+        return {
+          linestrings: linestring.map(coords => {
+            return { coords };
+          })
+        };
+      });
+
+      // write
+      var pbf$1 = new pbf();
+      CH.write(data, pbf$1);
+
+      var buffer = pbf$1.finish();
+
+      fs.writeFileSync(path, buffer, null);
+
+      console.log(`done saving ${path}`);
+
     };
 
     function Node(node) {
@@ -1768,6 +2717,8 @@ var contractionHierarchy = (function (exports) {
 
     Graph.prototype.loadCH = loadCH;
     Graph.prototype.saveCH = saveCH;
+    Graph.prototype.loadPbfCH = loadPbfCH;
+    Graph.prototype.savePbfCH = savePbfCH;
 
     Graph.prototype.contractGraph = contractGraph;
     Graph.prototype._arrangeContractedPaths = _arrangeContractedPaths;

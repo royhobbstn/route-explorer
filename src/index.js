@@ -1,4 +1,4 @@
-/* global mapboxgl */
+/* global mapboxgl, geobuf, Pbf */
 
 import { key } from './mapbox_api_key.js';
 
