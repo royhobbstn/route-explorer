@@ -25,7 +25,7 @@ fetch(request, options)
   })
   .then(buffer => {
 
-    console.log('data transformed to text');
+    console.log('data transformed to arrayBuffer');
 
     const graph = new Graph();
     graph.loadPbfCH(buffer);

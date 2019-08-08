@@ -41,7 +41,7 @@ window.map.on('load', () => {
       "line-cap": "round"
     },
     "paint": {
-      "line-color": "red",
+      "line-color": "cyan",
       "line-width": 1
     }
   });
@@ -72,10 +72,11 @@ window.map.on('load', () => {
 
   window.setInterval(function() {
     if (data_update) {
-      var geojson = geobuf.decode(new Pbf(data_update));
+      const geojson = geobuf.decode(new Pbf(data_update));
+
       window.map.getSource('routeline').setData(geojson);
       data_update = null;
     }
-  }, 50);
+  }, 60);
 
 });
