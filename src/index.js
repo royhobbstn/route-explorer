@@ -1,4 +1,4 @@
-/* global mapboxgl, geobuf, Pbf */
+/* global mapboxgl */
 
 import { key } from './mapbox_api_key.js';
 
@@ -15,46 +15,45 @@ window.map = new mapboxgl.Map({
   minZoom: 2
 });
 
+window.map.on('error', event => {
+  // swallow all 403 forbidden errors from tiles not found (expected)
+  if (event.error.message !== "Forbidden") {
+    console.error(event);
+  }
+});
+
 window.map.on('load', () => {
 
-  window.map.addSource('routeline', {
-    "type": "geojson",
-    "data": {
-      "type": "FeatureCollection",
-      "features": [{
-        "type": "Feature",
-        "geometry": {
-          "type": "Point",
-          "coordinates": [0, 0]
-        },
-        "properties": {}
-      }]
-    }
+  window.map.addSource('tiles', {
+    "type": "vector",
+    "minzoom": 0,
+    "maxzoom": 9,
+    "tiles": [`https://route-explorer-tiles.s3-us-west-2.amazonaws.com/{z}/{x}/{y}.pbf`]
   });
-
   window.map.addLayer({
-    "id": "route",
+    "id": "test",
     "type": "line",
-    "source": "routeline",
-    "layout": {
-      "line-join": "round",
-      "line-cap": "round"
-    },
+    "source": "tiles",
+    "source-layer": "main",
     "paint": {
       "line-color": "cyan",
       "line-width": 1
-    }
-  });
+    },
+    filter: ['in', '_id', 0]
+  }, "waterway-label");
+
 
 
   let anchor, data_update;
 
-  window.map.on('mousemove', function(e) {
+  const debouncedMousemove = debounce(function(e) {
     if (!anchor) {
       return;
     }
     worker.postMessage({ type: 'route', coords: [e.lngLat.lng, e.lngLat.lat] });
-  });
+  }, 20);
+
+  window.map.on('mousemove', debouncedMousemove);
 
   window.map.on('click', function(e) {
     if (anchor) {
@@ -67,16 +66,38 @@ window.map.on('load', () => {
   });
 
   worker.onmessage = function(event) {
-    data_update = event.data;
+
+    if (event.data.type === 'updateIds') {
+      data_update = event.data.ids;
+    }
+
   };
 
   window.setInterval(function() {
     if (data_update) {
-      const geojson = geobuf.decode(new Pbf(data_update));
+      if (window.map.areTilesLoaded()) {
+        window.map.setFilter('test', ['in', '_id', ...data_update]);
+        data_update = null;
+      }
 
-      window.map.getSource('routeline').setData(geojson);
-      data_update = null;
     }
-  }, 60);
+  }, 70);
+
+  // per underscore
+  function debounce(func, wait, immediate) {
+    var timeout;
+    return function() {
+      var context = this,
+        args = arguments;
+      var later = function() {
+        timeout = null;
+        if (!immediate) func.apply(context, args);
+      };
+      var callNow = immediate && !timeout;
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+      if (callNow) func.apply(context, args);
+    };
+  }
 
 });

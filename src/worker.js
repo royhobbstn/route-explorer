@@ -1,11 +1,8 @@
 /* global fetch, Headers, Request, contractionHierarchy, geobuf, Pbf */
 
 self.importScripts('scripts/ch-script.js');
-self.importScripts('scripts/pbf.js');
-self.importScripts('scripts/geobuf.js');
 
-const { Graph, CoordinateLookup } = contractionHierarchy;
-
+const { Graph, __geoindex, __kdindex } = contractionHierarchy;
 
 let finder, lookup, anchor;
 
@@ -16,9 +13,10 @@ var options = {
   mode: 'cors',
 };
 
-var request = new Request('https://misc-public-files-dt.s3-us-west-2.amazonaws.com/net.pbf.br');
+var request_network = new Request('https://misc-public-files-dt.s3-us-west-2.amazonaws.com/net.pbf.br');
+var request_lookup = new Request('https://misc-public-files-dt.s3-us-west-2.amazonaws.com/net_coordinates.json');
 
-fetch(request, options)
+fetch(request_network, options)
   .then((resp) => {
     console.log('data loaded');
     return resp.arrayBuffer();
@@ -32,8 +30,24 @@ fetch(request, options)
 
     console.log('data loaded into graph');
 
-    lookup = new CoordinateLookup(graph);
-    finder = graph.createPathfinder({ ids: true, path: true });
+    finder = graph.createPathfinder({ ids: true });
+
+  });
+
+
+fetch(request_lookup, options)
+  .then((resp) => {
+    console.log('lookup loaded');
+    return resp.json();
+  })
+  .then(coordinate_list => {
+
+    console.log('lookup transformed to json');
+
+    lookup = __kdindex(coordinate_list, (p) => p[0], (p) => p[1]);
+
+    console.log('lookup coordinates indexed');
+
 
   });
 
@@ -45,18 +59,19 @@ self.onmessage = function(e) {
   }
 
   if (e.data.type === 'setAnchor') {
-    anchor = lookup.getClosestNetworkPt(e.data.coords[0], e.data.coords[1]);
+    anchor = __geoindex.around(lookup, e.data.coords[0], e.data.coords[1], 1)[0];
   }
 
   if (e.data.type === 'route') {
-    const coords2 = lookup.getClosestNetworkPt(e.data.coords[0], e.data.coords[1]);
+    const coords2 = __geoindex.around(lookup, e.data.coords[0], e.data.coords[1], 1)[0];
 
     console.time('routed');
     const result = finder.queryContractionHierarchy(anchor, coords2);
     console.timeEnd('routed');
 
-    var buffer = geobuf.encode(result.path, new Pbf());
+    self.postMessage({ type: 'updateIds', ids: result.ids });
 
-    self.postMessage(buffer);
   }
+
+
 };
