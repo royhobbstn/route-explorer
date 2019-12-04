@@ -67,6 +67,27 @@ window.map.on('load', () => {
 
   worker.onmessage = function(event) {
 
+    if (event.data.type === 'workerReady') {
+      document.getElementById("notification").style.display = 'none';
+      document.getElementById("broadcast").style.display = 'none';
+
+      document.getElementById("ready").style.display = 'block';
+      document.getElementById("route").style.display = 'block';
+    }
+
+    if (event.data.type === 'broadcast') {
+      const child = document.createElement("p");
+      child.innerHTML = '\t...' + event.data.message;
+      document.getElementById("broadcast").appendChild(child);
+    }
+
+    if (event.data.type === 'route') {
+      const child = document.createTextNode(event.data.message + '\n');
+      const r = document.getElementById("route");
+      r.appendChild(child);
+      r.scrollTop = r.scrollHeight;
+    }
+
     if (event.data.type === 'updateIds') {
       data_update = event.data.ids;
     }

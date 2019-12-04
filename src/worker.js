@@ -16,40 +16,45 @@ var options = {
 var request_network = new Request('https://misc-public-files-dt.s3-us-west-2.amazonaws.com/net.pbf.br');
 var request_lookup = new Request('https://misc-public-files-dt.s3-us-west-2.amazonaws.com/net_coordinates.json');
 
-fetch(request_network, options)
+const pr1 = fetch(request_network, options)
   .then((resp) => {
-    console.log('data loaded');
+    self.postMessage({ type: 'broadcast', message: 'data loaded' });
     return resp.arrayBuffer();
   })
   .then(buffer => {
 
-    console.log('data transformed to arrayBuffer');
+    self.postMessage({ type: 'broadcast', message: 'data transformed to arrayBuffer' });
 
     const graph = new Graph();
     graph.loadPbfCH(buffer);
 
-    console.log('data loaded into graph');
+    self.postMessage({ type: 'broadcast', message: 'data loaded into graph' });
 
     finder = graph.createPathfinder({ ids: true });
 
   });
 
 
-fetch(request_lookup, options)
+const pr2 = fetch(request_lookup, options)
   .then((resp) => {
-    console.log('lookup loaded');
+    self.postMessage({ type: 'broadcast', message: 'lookup loaded' });
     return resp.json();
   })
   .then(coordinate_list => {
 
-    console.log('lookup transformed to json');
+    self.postMessage({ type: 'broadcast', message: 'lookup transformed to json' });
 
     lookup = __kdindex(coordinate_list, (p) => p[0], (p) => p[1]);
 
-    console.log('lookup coordinates indexed');
+    self.postMessage({ type: 'broadcast', message: 'lookup coordinates indexed' });
 
 
   });
+
+Promise.all([pr1, pr2])
+  .then(() => {
+    self.postMessage({ type: 'workerReady' });
+  })
 
 self.onmessage = function(e) {
 
@@ -65,9 +70,12 @@ self.onmessage = function(e) {
   if (e.data.type === 'route') {
     const coords2 = __geoindex.around(lookup, e.data.coords[0], e.data.coords[1], 1)[0];
 
-    console.time('routed');
+    const start = self.performance.now();
     const result = finder.queryContractionHierarchy(anchor, coords2);
-    console.timeEnd('routed');
+    const end = self.performance.now();
+    const time = (end - start).toFixed(2) + ' ms';
+
+    self.postMessage({ type: 'route', message: time });
 
     self.postMessage({ type: 'updateIds', ids: result.ids });
 
